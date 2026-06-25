@@ -1,0 +1,10 @@
+[detection]
+sensitivity = 25      # フレーム差分の閾値（小さいほど高感度）
+cooldown_seconds = 5  # 検知が途切れてから録画停止までの待機秒数
+
+[storage]
+directory = "recordings"
+retention_days = 7
+
+[camera]
+device_index = 0

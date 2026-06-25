@@ -1,0 +1,24 @@
+[project]
+name = "webcam-security"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "sera", email = "takuaku898@gmail.com" }
+]
+requires-python = ">=3.14.6"
+dependencies = [
+    "opencv-python>=4.13.0.92",
+]
+
+[project.scripts]
+webcam-security = "webcam_security:main"
+
+[build-system]
+requires = ["uv_build>=0.11.23,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
