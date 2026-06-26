@@ -91,6 +91,12 @@ motion_detector.py / recorder.py / live_view.py / storage_cleaner.py / main.py`
 完了条件: 致命的な問題が解消されていること。軽微な改善点は対応事項として記録し、
 必要に応じて実装フェーズに戻る。
 
+**進捗: 完了**。`python-code-reviewer`エージェントによるレビューを実施し、
+[docs/review.md](docs/review.md)にまとめた。致命的な問題はなし。重要な問題3点
+（`storage_cleaner.py`の削除失敗時の例外処理、`recorder.py`の書き込み失敗検知の実効性、
+`config.py`のbool値検証すり抜け）と軽微な改善提案5点が見つかったが、ユーザー判断により
+**今回は修正せず、いずれ対応する事項として記録した上でレビューを完了**とする。
+
 ### 6. ドキュメント作成
 テスト・レビューの結果を受けて、コード内にdocstringを記載したり、
 README.mdに防犯カメラの操作方法などを記載するフェーズ。
