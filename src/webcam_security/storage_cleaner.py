@@ -18,6 +18,12 @@ def clean_old_recordings(
 
     Returns:
         削除したファイルのパス一覧。
+
+    Example:
+        >>> from pathlib import Path
+        >>> removed = clean_old_recordings(Path("recordings"), retention_days=7)
+        >>> len(removed)
+        2
     """
     if not directory.is_dir():
         return []

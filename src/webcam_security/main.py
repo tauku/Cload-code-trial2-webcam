@@ -23,6 +23,17 @@ def run(config: AppConfig) -> None:
     カメラ切断等でCameraErrorが発生した場合は呼び出し元に伝播し、
     プログラムを安全終了させる。録画の書き込み失敗(RecorderError)は
     ここで捕捉し、ライブビューとループは継続する。
+
+    Args:
+        config: `load_config`で読み込まれた検証済みのアプリケーション設定。
+
+    Raises:
+        CameraError: カメラのオープンまたはフレーム取得に失敗した場合
+            （切断の可能性がある）。
+
+    Example:
+        >>> config = load_config(Path("config.toml"))
+        >>> run(config)  # 'q'キーまたはCtrl+Cまでブロックする
     """
     detector = MotionDetector(sensitivity=config.detection.sensitivity)
     recorder: Recorder | None = None
@@ -79,7 +90,13 @@ def run(config: AppConfig) -> None:
 
 
 def main() -> None:
-    """CLIエントリポイント。`uv run python -m webcam_security.main`で起動する。"""
+    """CLIエントリポイント。`uv run python -m webcam_security.main`で起動する。
+
+    カレントディレクトリの`config.toml`を読み込み、メインループ(`run`)を
+    実行する。設定エラー・カメラエラーが発生した場合は標準エラー出力に
+    メッセージを出し、終了コード1で終了する。`Ctrl+C`による中断は
+    正常終了として扱う。
+    """
     try:
         config = load_config(_DEFAULT_CONFIG_PATH)
     except ConfigError as e:

@@ -16,10 +16,18 @@ class RecorderError(Exception):
 
 
 class Recorder:
-    """検知中のフレームをMP4ファイルへ録画する。"""
+    """検知中のフレームをMP4ファイルへ録画する。
+
+    Example:
+        >>> recorder = Recorder(Path("recordings"), fps=20.0, frame_size=(640, 480))
+        >>> path = recorder.start()
+        >>> recorder.write(frame)
+        >>> recorder.stop()
+    """
 
     def __init__(self, directory: Path, fps: float, frame_size: tuple[int, int]) -> None:
-        """
+        """Recorderを初期化する。
+
         Args:
             directory: 録画ファイルの保存先ディレクトリ。
             fps: 録画する映像のフレームレート。

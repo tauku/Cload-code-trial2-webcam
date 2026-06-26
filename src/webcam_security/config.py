@@ -13,7 +13,14 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class DetectionConfig:
-    """動体検知に関する設定値。"""
+    """動体検知に関する設定値。
+
+    Attributes:
+        sensitivity: フレーム差分を二値化する際の閾値。値が小さいほど
+            微小な変化にも反応しやすくなる（高感度）。
+        cooldown_seconds: 動体検知が途切れてから録画を停止するまでの
+            待機秒数。
+    """
 
     sensitivity: int
     cooldown_seconds: float
@@ -21,7 +28,13 @@ class DetectionConfig:
 
 @dataclass(frozen=True)
 class StorageConfig:
-    """録画ファイルの保存・保持に関する設定値。"""
+    """録画ファイルの保存・保持に関する設定値。
+
+    Attributes:
+        directory: 録画ファイル(.mp4)の保存先ディレクトリ。
+        retention_days: 録画ファイルの保持日数。これを超えたファイルは
+            `storage_cleaner.clean_old_recordings`により自動削除される。
+    """
 
     directory: Path
     retention_days: int
@@ -29,14 +42,27 @@ class StorageConfig:
 
 @dataclass(frozen=True)
 class CameraConfig:
-    """カメラに関する設定値。"""
+    """カメラに関する設定値。
+
+    Attributes:
+        device_index: 使用するUSBカメラのデバイス番号
+            （`cv2.VideoCapture`に渡すインデックス）。
+    """
 
     device_index: int
 
 
 @dataclass(frozen=True)
 class AppConfig:
-    """アプリケーション全体の設定値。"""
+    """アプリケーション全体の設定値。
+
+    `load_config`によって生成される、検証済みの設定値のまとまり。
+
+    Attributes:
+        detection: 動体検知に関する設定値。
+        storage: 録画ファイルの保存・保持に関する設定値。
+        camera: カメラに関する設定値。
+    """
 
     detection: DetectionConfig
     storage: StorageConfig
@@ -55,6 +81,12 @@ def load_config(path: Path) -> AppConfig:
     Raises:
         ConfigError: ファイルが存在しない、項目が不足している、
             または値の形式・範囲が不正な場合。
+
+    Example:
+        >>> from pathlib import Path
+        >>> config = load_config(Path("config.toml"))
+        >>> config.detection.sensitivity
+        25
     """
     if not path.is_file():
         raise ConfigError(f"設定ファイルが見つかりません: {path}")
