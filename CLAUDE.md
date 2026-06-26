@@ -20,6 +20,8 @@ windows上で動作する、USBカメラを用いた防犯カメラ機能を開�
 - tests/: テストコード
 - docs/ :ドキュメント
 - docs/camera_function_development/ : plan.md実行時のドキュメント
+- docs/notification_function_development/ : plan2.md実行時のドキュメント
+- docs/notification_improvement_development/ : plan3.md実行時のドキュメント
 - docs/interrupt_report : 日をまたいだ作業再開用の一時レポート
 - prompt_history/ :claudeに入力したプロンプトの履歴　Claudeは確認不要
 
