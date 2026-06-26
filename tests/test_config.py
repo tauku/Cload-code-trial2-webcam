@@ -107,3 +107,33 @@ def test_load_config_境界値の不正値はConfigError(tmp_path: Path, invalid
 
     with pytest.raises(ConfigError):
         load_config(config_path)
+
+
+def test_load_config_notificationセクションが無い場合はenabledがFalse(tmp_path: Path) -> None:
+    """[notification]セクションを省略した場合、enabledがFalseになることを確認する（既存設定との後方互換性）。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML, encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.notification.enabled is False
+
+
+def test_load_config_notification_enabledがtrueの場合は正しく読み込まれる(tmp_path: Path) -> None:
+    """[notification]セクションでenabled = trueを指定した場合、正しく読み込まれることを確認する。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML + "\n[notification]\nenabled = true\n", encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.notification.enabled is True
+
+
+def test_load_config_notification_enabledがfalseの場合は正しく読み込まれる(tmp_path: Path) -> None:
+    """[notification]セクションでenabled = falseを明示した場合、Falseとして読み込まれることを確認する。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML + "\n[notification]\nenabled = false\n", encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.notification.enabled is False

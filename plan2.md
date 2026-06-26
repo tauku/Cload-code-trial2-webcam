@@ -113,6 +113,14 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 完了条件: 要件定義の機能・非機能要件を満たし、テストが全てパスしていること。
 不合格の場合は実装または設計フェーズに戻って修正する。
 
+**進捗: 完了**。`test-engineer`エージェントが`tests/test_notifier.py`（新規6件）、
+`tests/test_config.py`・`tests/test_main.py`への追加（各3件）を実施し、`requests.post`・
+`cv2.imencode`をモック化して実際のDiscordへの送信は行わずに検証した。既存32件と合わせて
+**44件全てパス**。詳細は
+[docs/notification_function_development/test_report.md](docs/notification_function_development/test_report.md)。
+さらにユーザー側のPC・USBカメラ・実Discordサーバーによる実機E2Eテスト（4項目）も実施し、
+**全項目パス**。
+
 ### 5. レビュー
 **python-code-reviewer**が担当。
 テスト完了したコードをレビューして、改善点やリスクなどをドキュメントにまとめるフェーズ。
@@ -138,5 +146,4 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 - 通知処理の失敗・遅延が録画・検知などの主機能の動作を妨げないこと
 
 ## 次のステップ
-フェーズ4（テスト）に進み、`test-engineer`エージェントにより`notifier.py`の単体テスト
-（Discordへの実HTTP送信はモック化）・`config.py`の`[notification]`関連テストを追加する。
+フェーズ5（レビュー）に進み、`python-code-reviewer`エージェントによるコードレビューを実施する。
