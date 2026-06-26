@@ -53,6 +53,21 @@ class CameraConfig:
 
 
 @dataclass(frozen=True)
+class NotificationConfig:
+    """Discord通知に関する設定値。
+
+    Webhook URLなどの機密情報は`config.toml`では管理しない（`.env`の
+    `DISCORD_WEBHOOK_URL`で管理する）。`[notification]`セクションは
+    省略可能で、省略した場合は通知を無効として扱う。
+
+    Attributes:
+        enabled: 検知時のDiscord通知を有効にするかどうか。
+    """
+
+    enabled: bool
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """アプリケーション全体の設定値。
 
@@ -62,11 +77,13 @@ class AppConfig:
         detection: 動体検知に関する設定値。
         storage: 録画ファイルの保存・保持に関する設定値。
         camera: カメラに関する設定値。
+        notification: Discord通知に関する設定値。
     """
 
     detection: DetectionConfig
     storage: StorageConfig
     camera: CameraConfig
+    notification: NotificationConfig
 
 
 def load_config(path: Path) -> AppConfig:
@@ -108,6 +125,8 @@ def load_config(path: Path) -> AppConfig:
             retention_days=int(storage_raw["retention_days"]),
         )
         camera = CameraConfig(device_index=int(camera_raw["device_index"]))
+        notification_raw = raw.get("notification", {})
+        notification = NotificationConfig(enabled=bool(notification_raw.get("enabled", False)))
     except KeyError as e:
         raise ConfigError(f"設定項目が不足しています: {e}") from e
     except (TypeError, ValueError) as e:
@@ -122,4 +141,6 @@ def load_config(path: Path) -> AppConfig:
     if camera.device_index < 0:
         raise ConfigError("camera.device_indexは0以上である必要があります")
 
-    return AppConfig(detection=detection, storage=storage, camera=camera)
+    return AppConfig(
+        detection=detection, storage=storage, camera=camera, notification=notification
+    )

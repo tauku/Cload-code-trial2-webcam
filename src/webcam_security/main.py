@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
-from webcam_security import live_view
+from dotenv import load_dotenv
+
+from webcam_security import live_view, notifier
 from webcam_security.camera import Camera, CameraError
 from webcam_security.config import AppConfig, ConfigError, load_config
 from webcam_security.motion_detector import MotionDetector
@@ -17,7 +21,7 @@ _DEFAULT_CONFIG_PATH = Path("config.toml")
 _CLEANUP_INTERVAL_SECONDS = 3600.0
 
 
-def run(config: AppConfig) -> None:
+def run(config: AppConfig, webhook_url: str | None = None) -> None:
     """ライブビュー表示と動体検知録画のメインループを実行する。
 
     カメラ切断等でCameraErrorが発生した場合は呼び出し元に伝播し、
@@ -26,6 +30,8 @@ def run(config: AppConfig) -> None:
 
     Args:
         config: `load_config`で読み込まれた検証済みのアプリケーション設定。
+        webhook_url: Discord Webhook URL。`config.notification.enabled`が
+            `True`かつ本値が指定されている場合のみ、検知開始時に通知を送信する。
 
     Raises:
         CameraError: カメラのオープンまたはフレーム取得に失敗した場合
@@ -67,6 +73,8 @@ def run(config: AppConfig) -> None:
                         except RecorderError as e:
                             print(f"録画エラー: {e}", file=sys.stderr)
                             recorder = None
+                        if config.notification.enabled and webhook_url:
+                            notifier.notify_motion_detected(webhook_url, frame, datetime.now())
 
                 if recorder is not None:
                     try:
@@ -92,19 +100,30 @@ def run(config: AppConfig) -> None:
 def main() -> None:
     """CLIエントリポイント。`uv run python -m webcam_security.main`で起動する。
 
-    カレントディレクトリの`config.toml`を読み込み、メインループ(`run`)を
-    実行する。設定エラー・カメラエラーが発生した場合は標準エラー出力に
-    メッセージを出し、終了コード1で終了する。`Ctrl+C`による中断は
-    正常終了として扱う。
+    カレントディレクトリの`config.toml`（および`.env`）を読み込み、
+    メインループ(`run`)を実行する。設定エラー・カメラエラーが発生した場合は
+    標準エラー出力にメッセージを出し、終了コード1で終了する。`Ctrl+C`による
+    中断は正常終了として扱う。
     """
+    load_dotenv()
+
     try:
         config = load_config(_DEFAULT_CONFIG_PATH)
     except ConfigError as e:
         print(f"設定エラー: {e}", file=sys.stderr)
         sys.exit(1)
 
+    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if config.notification.enabled and not webhook_url:
+        print(
+            "設定エラー: notification.enabledがtrueですが"
+            "DISCORD_WEBHOOK_URLが設定されていません（.envを確認してください）",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     try:
-        run(config)
+        run(config, webhook_url)
     except CameraError as e:
         print(f"カメラエラー: {e}", file=sys.stderr)
         sys.exit(1)

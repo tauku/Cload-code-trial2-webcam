@@ -95,6 +95,12 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 
 完了条件: 設計通りに主要機能が動作する状態になっていること。
 
+**進捗: 完了**。`uv add requests python-dotenv`で依存を追加し、`src/webcam_security/notifier.py`
+を新規実装。`config.py`に`NotificationConfig`（`[notification]`セクションは省略可能、既定`enabled=False`）
+を追加し、`config.toml`に`[notification]`セクションを追加。`main.py`で`load_dotenv()`・
+`DISCORD_WEBHOOK_URL`の検証・検知開始時(`recorder is None`分岐)の通知呼び出しを組み込んだ。
+`.env.example`を追加し、`.gitignore`に`.env`を追加。既存のpytest 32件は全てパスすることを確認済み。
+
 ### 4. テスト
 **test-engineer**が担当。
 実装されたものが要件定義の要件を満たしているか、設計通り実装できているかをテストするフェーズ。
@@ -132,5 +138,5 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 - 通知処理の失敗・遅延が録画・検知などの主機能の動作を妨げないこと
 
 ## 次のステップ
-フェーズ3（実装）に進み、`uv add requests python-dotenv`の上で`notifier.py`を実装し、
-`config.py`/`main.py`への組み込みを行う。
+フェーズ4（テスト）に進み、`test-engineer`エージェントにより`notifier.py`の単体テスト
+（Discordへの実HTTP送信はモック化）・`config.py`の`[notification]`関連テストを追加する。
