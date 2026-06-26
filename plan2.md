@@ -80,6 +80,12 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 
 完了条件: 設計内容がドキュメント化され、要件定義の各項目を満たす設計になっていること。
 
+**進捗: 完了**。HTTP送信に`requests`、Webhook URL管理に`.env`+`python-dotenv`を採用し、
+`notifier.py`の公開インターフェース・`main.py`への組み込み箇所（検知開始時の`recorder is None`分岐）・
+異常系・セキュリティ設計を
+[docs/notification_function_development/design.md](docs/notification_function_development/design.md)
+にまとめた。
+
 ### 3. 実装
 設計に基づき、実際にコーディングを行うフェーズ。
 
@@ -126,5 +132,5 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 - 通知処理の失敗・遅延が録画・検知などの主機能の動作を妨げないこと
 
 ## 次のステップ
-フェーズ2（設計）に進み、`notifier.py`の実装方法・`config.toml`の`[notification]`セクション・
-環境変数の読み込み方法を検討する。
+フェーズ3（実装）に進み、`uv add requests python-dotenv`の上で`notifier.py`を実装し、
+`config.py`/`main.py`への組み込みを行う。
