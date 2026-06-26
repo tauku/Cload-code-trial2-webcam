@@ -10,9 +10,14 @@ Windows上で動作する、USBカメラを用いた防犯カメラです。常�
 - 動体検知時のみのMP4録画（検知が一定時間途切れたら録画停止）
 - ライブビューウィンドウでの映像確認
 - 保持期間（既定7日）を超えた録画ファイルの自動削除
+- 動体検知開始時に、スナップショット画像付きでDiscordへ通知（任意機能。設定で有効/無効を切替可能）
 
-詳細な要件・設計は [docs/requirements.md](docs/requirements.md)、
-[docs/design.md](docs/design.md) を参照してください。
+詳細な要件・設計は [docs/camera_function_development/requirements.md](docs/camera_function_development/requirements.md)、
+[docs/camera_function_development/design.md](docs/camera_function_development/design.md) を参照してください。
+Discord通知機能については
+[docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md)、
+[docs/notification_function_development/design.md](docs/notification_function_development/design.md)
+を参照してください。
 
 ## 動作環境
 
@@ -31,6 +36,40 @@ Windows上で動作する、USBカメラを用いた防犯カメラです。常�
    ```
 
    `opencv-python` 等の依存パッケージが `.venv` 配下にインストールされます。
+
+### Discord通知機能を使う場合（任意）
+
+動体検知時にDiscordへ通知を送りたい場合は、以下の手順で設定します。
+通知機能を使わない場合はこの手順は不要です（`config.toml` の
+`notification.enabled` を `false` のままにしておけば通知は行われません）。
+
+1. `.env.example` を `.env` にコピーします。
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. コピーした `.env` を開き、`DISCORD_WEBHOOK_URL` に通知先のDiscord
+   Webhook URLを設定します。
+
+   ```
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxx/xxxx
+   ```
+
+   `.env` は `.gitignore` 対象のため、設定したWebhook URLがリポジトリに
+   コミットされることはありません。
+
+3. `config.toml` の `[notification]` セクションで `enabled = true` を設定します。
+
+   ```toml
+   [notification]
+   enabled = true
+   ```
+
+   `enabled = false`（既定）にすると通知機能自体が無効になり、`.env` の設定は
+   不要です。**`enabled = true` にもかかわらず `.env` に
+   `DISCORD_WEBHOOK_URL` が設定されていない場合は、起動時に設定エラーとなり
+   プログラムが終了します**。
 
 ## 使い方
 
@@ -72,6 +111,9 @@ retention_days = 7
 
 [camera]
 device_index = 0
+
+[notification]
+enabled = true
 ```
 
 | セクション | 項目 | 説明 |
@@ -81,6 +123,7 @@ device_index = 0
 | `storage` | `directory` | 録画ファイル（`.mp4`）の保存先ディレクトリ。相対パスの場合、起動時のカレントディレクトリ基準で解釈されます。 |
 | `storage` | `retention_days` | 録画ファイルの保持日数。この日数を超えたファイルは起動時および一定間隔ごとに自動削除されます。 |
 | `camera` | `device_index` | 使用するUSBカメラのデバイス番号。通常は `0`（PCに1台のみ接続している場合）です。 |
+| `notification` | `enabled` | 動体検知開始時のDiscord通知を有効にするかどうか。`true`の場合、`.env`の`DISCORD_WEBHOOK_URL`が必須になります（未設定時は起動時エラー）。省略した場合は`false`扱いです。 |
 
 設定ファイルが存在しない、項目が不足している、または値の範囲が不正な場合は、
 起動時にエラーメッセージを表示して終了します。
@@ -96,11 +139,15 @@ device_index = 0
 │   ├── motion_detector.py    # フレーム差分による動体検知
 │   ├── recorder.py           # MP4録画の開始/書き込み/停止
 │   ├── live_view.py          # ライブビューウィンドウの表示
-│   └── storage_cleaner.py    # 保持期間超過ファイルの自動削除
+│   ├── storage_cleaner.py    # 保持期間超過ファイルの自動削除
+│   └── notifier.py           # Discord Webhookへの検知通知（非同期送信）
 ├── tests/                  # テストコード（pytest）
 ├── docs/                   # ドキュメント（要件定義・設計・テスト結果・レビュー結果等）
+│   ├── camera_function_development/       # 防犯カメラ本体の開発ドキュメント
+│   └── notification_function_development/ # Discord通知機能の開発ドキュメント
 ├── prompt_history/         # Claudeに入力したプロンプトの履歴
 ├── config.toml             # アプリの動作設定
+├── .env.example            # Discord Webhook URL設定のテンプレート（.envとしてコピーして使用）
 └── recordings/             # 録画ファイルの保存先（既定。.gitignore対象）
 ```
 
@@ -113,8 +160,16 @@ uv run pytest
 ```
 
 実機（USBカメラ）やGUIウィンドウを使わずに検証できるよう、`cv2.VideoCapture`・
-`cv2.imshow` 等はテスト内でモックしています。詳細は
-[docs/test_report.md](docs/test_report.md) を参照してください。
+`cv2.imshow` 等はテスト内でモックしています。Discord通知機能についても
+`requests.post`をモックする単体テストに加え、実機での送信確認（E2Eテスト）も
+実施済みです。詳細は以下を参照してください。
+
+- 防犯カメラ本体: [docs/camera_function_development/test_report.md](docs/camera_function_development/test_report.md) /
+  [docs/camera_function_development/review.md](docs/camera_function_development/review.md)
+- Discord通知機能: [docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md) /
+  [docs/notification_function_development/design.md](docs/notification_function_development/design.md) /
+  [docs/notification_function_development/test_report.md](docs/notification_function_development/test_report.md) /
+  [docs/notification_function_development/review.md](docs/notification_function_development/review.md)
 
 ### 開発ルール
 
@@ -130,10 +185,19 @@ uv run pytest
 
 - **単一カメラのみ対応**: 複数のUSBカメラを同時に監視する機能はありません
   （`camera.device_index` で指定した1台のみを使用します）。
-- **通知機能は未実装**: 動体検知時にデスクトップ通知やメール等で知らせる機能は
-  現時点では実装されていません。録画によって検知の記録のみを残します。
-  将来追加する場合の拡張ポイントは [docs/design.md](docs/design.md) の
-  §7「将来の拡張ポイント: 通知モジュール」に記載されています。
+- **Discord通知は検知開始時のみ**: 動体検知の**開始**時にのみDiscordへ通知します。
+  検知**終了**時の通知は行いません（検知時にスナップショット画像を送信するため、
+  終了時の通知にはメリットが少ないという要件判断によるものです）。
+- **通知送信の失敗時にリトライは行いません**: Discordへの送信に失敗した場合は
+  標準エラー出力にログを記録するのみで、再送は行いません。再送機構を実装しても
+  USBカメラ・Windows PCという構成上有効に機能しないと判断し、スコープ外としています。
+  詳細は [docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md)
+  を参照してください。
+- **チャットボット化・双方向通知は未対応**: Discord側からの操作（録画の停止指示等）は
+  できません。一方向の通知のみです。
 - **GUI常駐・システムトレイ常駐は非対応**: コマンドラインからの手動起動・停止を
   前提としています。
-- そのほか既知の課題・改善提案は [docs/review.md](docs/review.md) を参照してください。
+- そのほか既知の課題・改善提案は
+  [docs/camera_function_development/review.md](docs/camera_function_development/review.md)、
+  [docs/notification_function_development/review.md](docs/notification_function_development/review.md)
+  を参照してください。

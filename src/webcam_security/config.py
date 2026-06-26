@@ -57,11 +57,23 @@ class NotificationConfig:
     """Discord通知に関する設定値。
 
     Webhook URLなどの機密情報は`config.toml`では管理しない（`.env`の
-    `DISCORD_WEBHOOK_URL`で管理する）。`[notification]`セクションは
-    省略可能で、省略した場合は通知を無効として扱う。
+    `DISCORD_WEBHOOK_URL`で管理する。`webcam_security.notifier`を参照）。
+    `[notification]`セクションは省略可能で、省略した場合は通知を
+    無効（`enabled=False`）として扱う（既存の`config.toml`との後方互換性）。
+
+    `enabled=True`の場合、起動時（`main.main`）に環境変数
+    `DISCORD_WEBHOOK_URL`が設定されていることが必須となり、未設定の場合は
+    設定エラーとして起動を中止する。
 
     Attributes:
         enabled: 検知時のDiscord通知を有効にするかどうか。
+
+    Example:
+        >>> config.toml の [notification] セクション:
+        >>> # [notification]
+        >>> # enabled = true
+        >>> NotificationConfig(enabled=True)
+        NotificationConfig(enabled=True)
     """
 
     enabled: bool
@@ -89,6 +101,11 @@ class AppConfig:
 def load_config(path: Path) -> AppConfig:
     """config.tomlを読み込み、検証済みの設定値を返す。
 
+    `[detection]`・`[storage]`・`[camera]`セクションは必須項目として検証する。
+    `[notification]`セクションは省略可能で、省略時は`enabled=False`として
+    扱う（Discord Webhook URL自体はここでは検証しない。`.env`の
+    `DISCORD_WEBHOOK_URL`の有無は`main.main`で別途検証する）。
+
     Args:
         path: config.tomlのパス。
 
@@ -104,6 +121,8 @@ def load_config(path: Path) -> AppConfig:
         >>> config = load_config(Path("config.toml"))
         >>> config.detection.sensitivity
         25
+        >>> config.notification.enabled
+        False
     """
     if not path.is_file():
         raise ConfigError(f"設定ファイルが見つかりません: {path}")

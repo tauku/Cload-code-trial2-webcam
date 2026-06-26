@@ -148,10 +148,19 @@ Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記
 完了条件: README記載内容に従って第三者が通知機能をセットアップ・操作できることを
 確認できる状態であること。
 
+**進捗: 完了**。`doc-writer`エージェントにより、`notifier.py`/`config.py`/`main.py`の
+docstring（Example・Args・Raises等）を補完し、`README.md`を更新した。
+`.env`セットアップ手順、`config.toml`の`[notification].enabled`、ディレクトリ構成への
+`notifier.py`/`.env.example`追加、既知の制限事項（検知終了時は通知しない・リトライなし・
+双方向通知は未対応）を記載。旧`docs/design.md`等への古いリンクも
+`docs/camera_function_development/`配下への移動に合わせて修正した。
+`uv run pytest`44件、全てパス（ドキュメントのみの変更でロジックは未変更）。
+これにより通知機能の開発フェーズ1〜6がすべて完了した。
+
 ## リスク
 - Discord Webhook URLの漏洩（リポジトリへの誤コミット、ログ出力への混入）
 - Discord側の障害・レート制限発生時の挙動
 - 通知処理の失敗・遅延が録画・検知などの主機能の動作を妨げないこと
 
 ## 次のステップ
-フェーズ6（ドキュメント作成）に進み、`doc-writer`エージェントによりdocstring整備・README更新を行う。
+全フェーズ完了。Discord Webhook通知機能はマージ可能な状態になった。

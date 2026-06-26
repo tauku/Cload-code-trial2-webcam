@@ -101,9 +101,28 @@ def main() -> None:
     """CLIエントリポイント。`uv run python -m webcam_security.main`で起動する。
 
     カレントディレクトリの`config.toml`（および`.env`）を読み込み、
-    メインループ(`run`)を実行する。設定エラー・カメラエラーが発生した場合は
-    標準エラー出力にメッセージを出し、終了コード1で終了する。`Ctrl+C`による
-    中断は正常終了として扱う。
+    メインループ(`run`)を実行する。`.env`は`load_dotenv()`により読み込まれ、
+    `DISCORD_WEBHOOK_URL`が設定されていれば環境変数として取得し`run`に渡す。
+
+    設定エラー・カメラエラーが発生した場合は標準エラー出力にメッセージを出し、
+    終了コード1で終了する。具体的には、以下のいずれかに該当する場合に
+    終了コード1で終了する。
+
+    - `config.toml`が存在しない、または項目が不足・不正である場合
+      （`ConfigError`）。
+    - `config.notification.enabled`が`True`であるにもかかわらず、
+      環境変数`DISCORD_WEBHOOK_URL`が設定されていない場合
+      （`.env`が用意されていない、または値が空の場合）。
+    - カメラのオープンやフレーム取得に失敗した場合（`CameraError`）。
+
+    `Ctrl+C`による中断は正常終了として扱う。
+
+    Example:
+        コマンドラインから直接起動する場合:
+
+        ```powershell
+        uv run python -m webcam_security.main
+        ```
     """
     load_dotenv()
 
