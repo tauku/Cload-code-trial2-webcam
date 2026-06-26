@@ -60,6 +60,11 @@
 
 完了条件: 上記の機能要件・非機能要件が一覧化され、ユーザーと合意できていること。
 
+**進捗: 完了**。通知タイミング（検知開始時のみ）、通知内容（テキスト＋スナップショット画像）、
+Webhook URL管理方法（環境変数）、送信失敗時の挙動（ログ記録のみ・リトライなし）を
+ユーザーと合意し、[docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md)
+にまとめた。
+
 ### 2. 設計
 要件定義で合意した内容を、どのような方法で実装するか検討・決定するフェーズ。
 [design.md](docs/camera_function_development/design.md) §7で既に決定済みの拡張ポイント
@@ -121,5 +126,5 @@
 - 通知処理の失敗・遅延が録画・検知などの主機能の動作を妨げないこと
 
 ## 次のステップ
-フェーズ1（要件定義）から着手し、通知タイミング・通知内容・Webhook URL管理方法の
-詳細をユーザーと合意する。
+フェーズ2（設計）に進み、`notifier.py`の実装方法・`config.toml`の`[notification]`セクション・
+環境変数の読み込み方法を検討する。
