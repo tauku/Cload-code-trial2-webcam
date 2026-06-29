@@ -10,13 +10,19 @@ Windows上で動作する、USBカメラを用いた防犯カメラです。常�
 - 動体検知時のみのMP4録画（検知が一定時間途切れたら録画停止）
 - ライブビューウィンドウでの映像確認
 - 保持期間（既定7日）を超えた録画ファイルの自動削除
-- 動体検知開始時に、スナップショット画像付きでDiscordへ通知（任意機能。設定で有効/無効を切替可能）
+- 動体検知中（検知が継続しクールダウン未経過の間）、スナップショット画像付きで
+  Discordへ一定間隔ごとに繰り返し通知（任意機能。設定で有効/無効を切替可能。
+  送信間隔・送信数上限も設定可能）
 
 詳細な要件・設計は [docs/camera_function_development/requirements.md](docs/camera_function_development/requirements.md)、
 [docs/camera_function_development/design.md](docs/camera_function_development/design.md) を参照してください。
 Discord通知機能については
 [docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md)、
 [docs/notification_function_development/design.md](docs/notification_function_development/design.md)
+を参照してください。さらに、通知のスナップショット送信タイミング・送信数上限
+（レート制限）等の改良内容については
+[docs/notification_improvement_development/requirements.md](docs/notification_improvement_development/requirements.md)、
+[docs/notification_improvement_development/design.md](docs/notification_improvement_development/design.md)
 を参照してください。
 
 ## 動作環境
@@ -28,6 +34,13 @@ Discord通知機能については
 
 ## セットアップ
 
+> **重要**: リポジトリにコミットされている `config.toml` は
+> `notification.enabled = true`（Discord通知が有効）の状態になっています。
+> そのため、**`.env` を用意せずに `uv sync` の後すぐ起動すると、後述の
+> 「Discord通知機能を使う場合」の設定が完了するまで設定エラーで起動できません**。
+> 通知機能を使わない場合は、`config.toml` の `notification.enabled` を
+> `false` に変更してください（この場合 `.env` は不要です）。
+
 1. [uv](https://docs.astral.sh/uv/getting-started/installation/) をインストールします。
 2. 依存パッケージを同期します。
 
@@ -37,11 +50,14 @@ Discord通知機能については
 
    `opencv-python` 等の依存パッケージが `.venv` 配下にインストールされます。
 
-### Discord通知機能を使う場合（任意）
+### Discord通知機能を使う場合（既定で有効）
 
-動体検知時にDiscordへ通知を送りたい場合は、以下の手順で設定します。
+動体検知中にDiscordへ通知を送りたい場合は、以下の手順で設定します。
+**前述の通り `config.toml` の `notification.enabled` は既定で `true` のため、
+通知機能を使わない場合を除き、この手順は実質必須です。**
 通知機能を使わない場合はこの手順は不要です（`config.toml` の
-`notification.enabled` を `false` のままにしておけば通知は行われません）。
+`notification.enabled` を `false` に変更すれば通知は行われず、`.env` も
+不要になります）。
 
 1. `.env.example` を `.env` にコピーします。
 
@@ -59,14 +75,16 @@ Discord通知機能については
    `.env` は `.gitignore` 対象のため、設定したWebhook URLがリポジトリに
    コミットされることはありません。
 
-3. `config.toml` の `[notification]` セクションで `enabled = true` を設定します。
+3. `config.toml` の `[notification]` セクションで `enabled = true` を設定します
+   （リポジトリ既定の `config.toml` では既に `true` になっているため、通常は
+   変更不要です）。
 
    ```toml
    [notification]
    enabled = true
    ```
 
-   `enabled = false`（既定）にすると通知機能自体が無効になり、`.env` の設定は
+   `enabled = false` にすると通知機能自体が無効になり、`.env` の設定は
    不要です。**`enabled = true` にもかかわらず `.env` に
    `DISCORD_WEBHOOK_URL` が設定されていない場合は、起動時に設定エラーとなり
    プログラムが終了します**。
@@ -114,6 +132,9 @@ device_index = 0
 
 [notification]
 enabled = true
+snapshot_interval_seconds = 3   # 検知中にスナップショットを送信する間隔(秒)
+rate_limit_window_seconds = 60  # 送信数上限を計算する時間窓(秒)
+rate_limit_max_count = 10       # 上記時間窓内に送信できる通知の最大数
 ```
 
 | セクション | 項目 | 説明 |
@@ -123,9 +144,16 @@ enabled = true
 | `storage` | `directory` | 録画ファイル（`.mp4`）の保存先ディレクトリ。相対パスの場合、起動時のカレントディレクトリ基準で解釈されます。 |
 | `storage` | `retention_days` | 録画ファイルの保持日数。この日数を超えたファイルは起動時および一定間隔ごとに自動削除されます。 |
 | `camera` | `device_index` | 使用するUSBカメラのデバイス番号。通常は `0`（PCに1台のみ接続している場合）です。 |
-| `notification` | `enabled` | 動体検知開始時のDiscord通知を有効にするかどうか。`true`の場合、`.env`の`DISCORD_WEBHOOK_URL`が必須になります（未設定時は起動時エラー）。省略した場合は`false`扱いです。 |
+| `notification` | `enabled` | 動体検知中のDiscord通知を有効にするかどうか。`true`の場合、`.env`の`DISCORD_WEBHOOK_URL`が必須になります（未設定時は起動時エラー）。省略した場合は`false`扱いです。値は`true`/`false`のTOMLブールリテラルで記述する必要があり、`"false"`のような文字列で記述すると起動時エラーになります。 |
+| `notification` | `snapshot_interval_seconds` | 動体検知が継続している間（クールダウン未経過の間）、スナップショットをDiscordへ送信する間隔（秒）。検知開始時は間隔に関わらず即時に1枚送信されます。省略時は`3`。 |
+| `notification` | `rate_limit_window_seconds` | 送信数上限（レート制限）を計算する時間窓（秒）。`rate_limit_max_count`とあわせて、一定時間内に送信できる通知数を制限します。省略時は`60`。 |
+| `notification` | `rate_limit_max_count` | `rate_limit_window_seconds`の時間窓内に送信できる通知の最大数。これを超える送信はスキップされ、標準エラー出力にログが残ります（Discordへの代替通知・まとめ送信は行いません）。省略時は`10`。 |
 
-設定ファイルが存在しない、項目が不足している、または値の範囲が不正な場合は、
+`[notification]`セクション自体、および`snapshot_interval_seconds`・
+`rate_limit_window_seconds`・`rate_limit_max_count`の3項目はいずれも省略可能です
+（省略時は上記のデフォルト値が使われ、既存の`config.toml`との後方互換性があります）。
+
+設定ファイルが存在しない、項目が不足している、または値の範囲・型が不正な場合は、
 起動時にエラーメッセージを表示して終了します。
 
 ## ディレクトリ構成
@@ -143,8 +171,9 @@ enabled = true
 │   └── notifier.py           # Discord Webhookへの検知通知（非同期送信）
 ├── tests/                  # テストコード（pytest）
 ├── docs/                   # ドキュメント（要件定義・設計・テスト結果・レビュー結果等）
-│   ├── camera_function_development/       # 防犯カメラ本体の開発ドキュメント
-│   └── notification_function_development/ # Discord通知機能の開発ドキュメント
+│   ├── camera_function_development/         # 防犯カメラ本体の開発ドキュメント
+│   ├── notification_function_development/   # Discord通知機能の開発ドキュメント
+│   └── notification_improvement_development/ # Discord通知機能の改良（間隔送信・レート制限等）の開発ドキュメント
 ├── prompt_history/         # Claudeに入力したプロンプトの履歴
 ├── config.toml             # アプリの動作設定
 ├── .env.example            # Discord Webhook URL設定のテンプレート（.envとしてコピーして使用）
@@ -166,10 +195,15 @@ uv run pytest
 
 - 防犯カメラ本体: [docs/camera_function_development/test_report.md](docs/camera_function_development/test_report.md) /
   [docs/camera_function_development/review.md](docs/camera_function_development/review.md)
-- Discord通知機能: [docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md) /
+- Discord通知機能（初期実装）: [docs/notification_function_development/requirements.md](docs/notification_function_development/requirements.md) /
   [docs/notification_function_development/design.md](docs/notification_function_development/design.md) /
   [docs/notification_function_development/test_report.md](docs/notification_function_development/test_report.md) /
   [docs/notification_function_development/review.md](docs/notification_function_development/review.md)
+- Discord通知機能の改良（間隔送信・レート制限等）: [docs/notification_improvement_development/requirements.md](docs/notification_improvement_development/requirements.md) /
+  [docs/notification_improvement_development/design.md](docs/notification_improvement_development/design.md) /
+  [docs/notification_improvement_development/develop.md](docs/notification_improvement_development/develop.md) /
+  [docs/notification_improvement_development/test_report.md](docs/notification_improvement_development/test_report.md) /
+  [docs/notification_improvement_development/review.md](docs/notification_improvement_development/review.md)
 
 ### 開発ルール
 
@@ -185,9 +219,12 @@ uv run pytest
 
 - **単一カメラのみ対応**: 複数のUSBカメラを同時に監視する機能はありません
   （`camera.device_index` で指定した1台のみを使用します）。
-- **Discord通知は検知開始時のみ**: 動体検知の**開始**時にのみDiscordへ通知します。
-  検知**終了**時の通知は行いません（検知時にスナップショット画像を送信するため、
-  終了時の通知にはメリットが少ないという要件判断によるものです）。
+- **Discord通知は検知継続中のみ**: 動体検知が継続している間（クールダウン未経過の間）、
+  `snapshot_interval_seconds`の間隔でDiscordへ繰り返し通知します（検知開始時は
+  間隔に関わらず即時に1枚送信されます）。検知**終了**時（クールダウン経過後）の
+  追加通知は行いません（要件判断によるものです）。また、`rate_limit_window_seconds`・
+  `rate_limit_max_count`で設定した送信数上限を超える通知はスキップされ、標準エラー
+  出力にログが残るのみで、Discordへの代替通知・まとめ送信は行いません。
 - **通知送信の失敗時にリトライは行いません**: Discordへの送信に失敗した場合は
   標準エラー出力にログを記録するのみで、再送は行いません。再送機構を実装しても
   USBカメラ・Windows PCという構成上有効に機能しないと判断し、スコープ外としています。
@@ -199,5 +236,6 @@ uv run pytest
   前提としています。
 - そのほか既知の課題・改善提案は
   [docs/camera_function_development/review.md](docs/camera_function_development/review.md)、
-  [docs/notification_function_development/review.md](docs/notification_function_development/review.md)
+  [docs/notification_function_development/review.md](docs/notification_function_development/review.md)、
+  [docs/notification_improvement_development/review.md](docs/notification_improvement_development/review.md)
   を参照してください。
