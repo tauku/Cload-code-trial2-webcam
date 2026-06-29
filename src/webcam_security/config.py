@@ -11,6 +11,28 @@ class ConfigError(Exception):
     """設定ファイルが存在しない、または内容が不正な場合に発生する例外。"""
 
 
+def _require_bool(value: object, field_name: str) -> bool:
+    """boolフィールドの型を厳密に検証する。
+
+    `bool()`は文字列等を常に真偽値へ変換してしまい、TOMLの記述ミス
+    （例: クォート付きの`enabled = "false"`）を検知できないため、
+    `isinstance`による明示的な型チェックを行う。
+
+    Args:
+        value: 検証対象の値。
+        field_name: エラーメッセージに含める設定項目名（例: "notification.enabled"）。
+
+    Returns:
+        `value`がbool型であればそのまま返す。
+
+    Raises:
+        ConfigError: `value`がbool型でない場合。
+    """
+    if not isinstance(value, bool):
+        raise ConfigError(f"{field_name}はbool型(true/false)である必要があります")
+    return value
+
+
 @dataclass(frozen=True)
 class DetectionConfig:
     """動体検知に関する設定値。
@@ -60,6 +82,8 @@ class NotificationConfig:
     `DISCORD_WEBHOOK_URL`で管理する。`webcam_security.notifier`を参照）。
     `[notification]`セクションは省略可能で、省略した場合は通知を
     無効（`enabled=False`）として扱う（既存の`config.toml`との後方互換性）。
+    `snapshot_interval_seconds`等の3項目も省略可能で、省略時はデフォルト値が
+    使われる。
 
     `enabled=True`の場合、起動時（`main.main`）に環境変数
     `DISCORD_WEBHOOK_URL`が設定されていることが必須となり、未設定の場合は
@@ -67,16 +91,22 @@ class NotificationConfig:
 
     Attributes:
         enabled: 検知時のDiscord通知を有効にするかどうか。
+        snapshot_interval_seconds: 検知継続中にスナップショットを送信する間隔(秒)。
+        rate_limit_window_seconds: 送信数上限を計算する時間窓(秒)。
+        rate_limit_max_count: 上記時間窓内に送信できる通知の最大数。
 
     Example:
         >>> config.toml の [notification] セクション:
         >>> # [notification]
         >>> # enabled = true
         >>> NotificationConfig(enabled=True)
-        NotificationConfig(enabled=True)
+        NotificationConfig(enabled=True, snapshot_interval_seconds=3.0, rate_limit_window_seconds=60.0, rate_limit_max_count=10)
     """
 
     enabled: bool
+    snapshot_interval_seconds: float = 3.0
+    rate_limit_window_seconds: float = 60.0
+    rate_limit_max_count: int = 10
 
 
 @dataclass(frozen=True)
@@ -145,7 +175,16 @@ def load_config(path: Path) -> AppConfig:
         )
         camera = CameraConfig(device_index=int(camera_raw["device_index"]))
         notification_raw = raw.get("notification", {})
-        notification = NotificationConfig(enabled=bool(notification_raw.get("enabled", False)))
+        notification = NotificationConfig(
+            enabled=_require_bool(notification_raw.get("enabled", False), "notification.enabled"),
+            snapshot_interval_seconds=float(
+                notification_raw.get("snapshot_interval_seconds", 3.0)
+            ),
+            rate_limit_window_seconds=float(
+                notification_raw.get("rate_limit_window_seconds", 60.0)
+            ),
+            rate_limit_max_count=int(notification_raw.get("rate_limit_max_count", 10)),
+        )
     except KeyError as e:
         raise ConfigError(f"設定項目が不足しています: {e}") from e
     except (TypeError, ValueError) as e:
@@ -159,6 +198,12 @@ def load_config(path: Path) -> AppConfig:
         raise ConfigError("storage.retention_daysは正の値である必要があります")
     if camera.device_index < 0:
         raise ConfigError("camera.device_indexは0以上である必要があります")
+    if notification.snapshot_interval_seconds <= 0:
+        raise ConfigError("notification.snapshot_interval_secondsは正の値である必要があります")
+    if notification.rate_limit_window_seconds <= 0:
+        raise ConfigError("notification.rate_limit_window_secondsは正の値である必要があります")
+    if notification.rate_limit_max_count <= 0:
+        raise ConfigError("notification.rate_limit_max_countは正の値である必要があります")
 
     return AppConfig(
         detection=detection, storage=storage, camera=camera, notification=notification

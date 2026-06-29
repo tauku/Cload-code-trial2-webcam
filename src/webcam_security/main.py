@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -31,7 +30,8 @@ def run(config: AppConfig, webhook_url: str | None = None) -> None:
     Args:
         config: `load_config`で読み込まれた検証済みのアプリケーション設定。
         webhook_url: Discord Webhook URL。`config.notification.enabled`が
-            `True`かつ本値が指定されている場合のみ、検知開始時に通知を送信する。
+            `True`かつ本値が指定されている場合のみ、検知継続中（クールダウン未経過の間）
+            に設定された間隔・送信数上限に従って通知を送信する。
 
     Raises:
         CameraError: カメラのオープンまたはフレーム取得に失敗した場合
@@ -45,6 +45,16 @@ def run(config: AppConfig, webhook_url: str | None = None) -> None:
     recorder: Recorder | None = None
     last_motion_at: float | None = None
     last_cleanup_at = 0.0
+    motion_notifier = (
+        notifier.MotionNotifier(
+            webhook_url,
+            config.notification.snapshot_interval_seconds,
+            config.notification.rate_limit_window_seconds,
+            config.notification.rate_limit_max_count,
+        )
+        if config.notification.enabled and webhook_url
+        else None
+    )
 
     with Camera(config.camera.device_index) as camera:
         first_frame = camera.read()
@@ -73,8 +83,15 @@ def run(config: AppConfig, webhook_url: str | None = None) -> None:
                         except RecorderError as e:
                             print(f"録画エラー: {e}", file=sys.stderr)
                             recorder = None
-                        if config.notification.enabled and webhook_url:
-                            notifier.notify_motion_detected(webhook_url, frame, datetime.now())
+
+                if (
+                    last_motion_at is not None
+                    and now - last_motion_at < config.detection.cooldown_seconds
+                ):
+                    if motion_notifier is not None:
+                        motion_notifier.notify_if_due(frame, now)
+                elif motion_notifier is not None:
+                    motion_notifier.reset()
 
                 if recorder is not None:
                     try:
@@ -94,6 +111,8 @@ def run(config: AppConfig, webhook_url: str | None = None) -> None:
         finally:
             if recorder is not None:
                 recorder.stop()
+            if motion_notifier is not None:
+                motion_notifier.join_pending()
             live_view.close()
 
 
@@ -135,7 +154,7 @@ def main() -> None:
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if config.notification.enabled and not webhook_url:
         print(
-            "設定エラー: notification.enabledがtrueですが"
+            "設定エラー: notification.enabledがtrueですが、"
             "DISCORD_WEBHOOK_URLが設定されていません（.envを確認してください）",
             file=sys.stderr,
         )

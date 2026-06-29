@@ -11,3 +11,6 @@ device_index = 0
 
 [notification]
 enabled = true
+snapshot_interval_seconds = 3   # 検知中にスナップショットを送信する間隔(秒)
+rate_limit_window_seconds = 60  # 送信数上限を計算する時間窓(秒)
+rate_limit_max_count = 10       # 上記時間窓内に送信できる通知の最大数

@@ -88,7 +88,12 @@
 
 完了条件: 設計通りに改良内容が動作する状態になっていること。
 
-**進捗: 未着手**。
+成果物: `config.toml`・`config.py`・`notifier.py`（`MotionNotifier`クラスへ再設計）・`main.py`の変更。
+`uv run pytest`実行結果は38件成功・6件失敗（`tests/test_notifier.py`が旧関数API
+`notify_motion_detected`を前提にしているため。次フェーズ（テスト）でtest-engineerが
+新API（`MotionNotifier`クラス）に合わせて更新する）。
+
+**進捗: 完了**。
 
 ### 4. テスト
 **test-engineer**が担当。
