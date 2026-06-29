@@ -137,3 +137,108 @@ def test_load_config_notification_enabledがfalseの場合は正しく読み込�
     config = load_config(config_path)
 
     assert config.notification.enabled is False
+
+
+def test_load_config_notification_enabledのみの場合は新規3項目がデフォルト値になる(
+    tmp_path: Path,
+) -> None:
+    """[notification]セクションがenabledのみの場合、snapshot_interval_seconds等が
+    デフォルト値(3.0 / 60.0 / 10)になることを確認する（既存config.tomlとの後方互換性）。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML + "\n[notification]\nenabled = true\n", encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.notification.snapshot_interval_seconds == 3.0
+    assert config.notification.rate_limit_window_seconds == 60.0
+    assert config.notification.rate_limit_max_count == 10
+
+
+def test_load_config_notificationセクション省略時も新規3項目がデフォルト値になる(
+    tmp_path: Path,
+) -> None:
+    """[notification]セクション自体を省略した場合も、新規3項目がデフォルト値になることを確認する。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML, encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.notification.snapshot_interval_seconds == 3.0
+    assert config.notification.rate_limit_window_seconds == 60.0
+    assert config.notification.rate_limit_max_count == 10
+
+
+def test_load_config_notification新規3項目を明示指定すると正しく読み込まれる(
+    tmp_path: Path,
+) -> None:
+    """snapshot_interval_seconds等の新規3項目を明示指定した場合、正しく読み込まれることを確認する。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        _VALID_TOML
+        + "\n[notification]\n"
+        + "enabled = true\n"
+        + "snapshot_interval_seconds = 5\n"
+        + "rate_limit_window_seconds = 30\n"
+        + "rate_limit_max_count = 4\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.notification.snapshot_interval_seconds == 5.0
+    assert config.notification.rate_limit_window_seconds == 30.0
+    assert config.notification.rate_limit_max_count == 4
+
+
+def test_load_config_notification_enabledに文字列を指定するとConfigError(
+    tmp_path: Path,
+) -> None:
+    """enabled = "false"のような文字列(TOMLとしては文字列型)を指定した場合、
+    ConfigErrorが発生することを確認する（review.md 🟠#1の修正確認）。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        _VALID_TOML + '\n[notification]\nenabled = "false"\n', encoding="utf-8"
+    )
+
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+def test_load_config_notification_enabledに整数を指定するとConfigError(
+    tmp_path: Path,
+) -> None:
+    """enabled = 1のような整数(bool型でない)を指定した場合、ConfigErrorが発生することを確認する。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML + "\n[notification]\nenabled = 1\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize(
+    "invalid_notification_toml",
+    [
+        # snapshot_interval_secondsが0
+        "\n[notification]\nenabled = true\nsnapshot_interval_seconds = 0\n",
+        # snapshot_interval_secondsが負数
+        "\n[notification]\nenabled = true\nsnapshot_interval_seconds = -1\n",
+        # rate_limit_window_secondsが0
+        "\n[notification]\nenabled = true\nrate_limit_window_seconds = 0\n",
+        # rate_limit_window_secondsが負数
+        "\n[notification]\nenabled = true\nrate_limit_window_seconds = -1\n",
+        # rate_limit_max_countが0
+        "\n[notification]\nenabled = true\nrate_limit_max_count = 0\n",
+        # rate_limit_max_countが負数
+        "\n[notification]\nenabled = true\nrate_limit_max_count = -1\n",
+    ],
+)
+def test_load_config_notification新規3項目に0以下の値を指定するとConfigError(
+    tmp_path: Path, invalid_notification_toml: str
+) -> None:
+    """snapshot_interval_seconds等の新規3項目に0以下の値を指定した場合、
+    ConfigErrorが発生することを確認する。"""
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(_VALID_TOML + invalid_notification_toml, encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(config_path)

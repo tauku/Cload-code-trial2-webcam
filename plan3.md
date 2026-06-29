@@ -107,7 +107,13 @@
 完了条件: 要件定義の機能・非機能要件を満たし、テストが全てパスしていること。
 不合格の場合は実装または設計フェーズに戻って修正する。
 
-**進捗: 未着手**。
+成果物: [test_report.md](docs/notification_improvement_development/test_report.md)。
+`tests/test_notifier.py`を`MotionNotifier`クラスのAPIに合わせて全面改訂（旧関数API向け
+テストを置き換え）、`tests/test_config.py`に新規設定項目・🟠#1のbool型検証強化の
+テストを追加。`tests/test_main.py`は既存方針のまま変更不要と確認。`uv run pytest`は
+60件全てパス。実機・実DiscordサーバーでのE2Eテスト（ユーザー実施）も全5項目パス。
+
+**進捗: 完了**。
 
 ### 5. レビュー
 **python-code-reviewer**が担当。
