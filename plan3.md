@@ -61,7 +61,9 @@
 
 完了条件: 上記の改良要件が一覧化され、ユーザーと合意できていること。
 
-**進捗: 未着手**。
+成果物: [requirements.md](docs/notification_improvement_development/requirements.md)
+
+**進捗: 完了**。
 
 ### 2. 設計
 要件定義で合意した改良内容を、どのような方法で実装するか検討・決定するフェーズ。
