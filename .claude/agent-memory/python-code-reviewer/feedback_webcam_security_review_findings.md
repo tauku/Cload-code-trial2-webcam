@@ -15,6 +15,13 @@ metadata:
 2. **`config.py`のint()/float()変換はbool値をすり抜けさせる**（Pythonの`bool`は`int`サブクラスのため`int(True)==1`でTypeError/ValueErrorが出ない）。
    **Why**: tomllibはTOMLの`true`/`false`をPythonの`bool`として返すため、設定ミス（型違い）が静かに通ってしまう。
    **How to apply**: config.py系の検証ロジックを見るたびに、`isinstance(value, bool)`チェックの有無を確認する。
+   **2026-06-29追記（3回目の再発を確認）**: 通知機能改良で`enabled`は`_require_bool`化されたが、
+   同時に追加された`NotificationConfig`の新規3項目（`snapshot_interval_seconds`/
+   `rate_limit_window_seconds`/`rate_limit_max_count`）は従来通り`float()`/`int()`の
+   ままで、この問題が再発していた（`float(True)==1.0`が範囲検証`<=0`もすり抜ける）。
+   `_require_bool`のようなbool用ヘルパーが導入された際、**同じ変更の中で追加された
+   数値項目側に「boolを拒否する」チェックが入っているか必ずセットで確認すること**。
+   片方だけ直して終わりにしないこと。
 
 3. **`storage_cleaner.py`の`path.unlink()`に例外処理がない**。1ファイルの削除失敗（録画中のロック等）で残りのファイル削除処理全体が止まる。
    **Why**: design.md §4は異常系で「ループ継続」を方針としているが、クリーンアップ処理にはこの方針が及んでいなかった。
@@ -45,5 +52,22 @@ metadata:
    追加する際にも踏襲すべき）。
    **How to apply**: notifier.py関連の変更時は、(a) Webhook URLがログ・例外メッセージに
    生値で出力されていないか、(b) frameを参照渡しのままスレッドに渡していないか、を確認する。
+
+7. **2026-06-29、`notifier.py`が関数からステートフルな`MotionNotifier`クラスへ再設計され、
+   上記6.の`daemon=True`未joinの指摘が`join_pending()`で解消された**。
+   `_threads: list[threading.Thread]`はメインループ（単一スレッド）からのみ読み書きされる
+   設計で、バックグラウンドスレッド（`_send`）側は`_threads`に触れないためデータ競合はない。
+   `join_pending(timeout)`は**`_threads`内の各スレッドに対して個別に`timeout`秒**を適用する
+   実装（design.mdのdocstring通り）であり、複数スレッドが残っている終了時には
+   `timeout × 残存スレッド数`まで待機が伸びる可能性がある点は仕様として把握しておくこと。
+   **How to apply**: 今後`join_pending`系のタイムアウト設計を見る際は、「全体でtimeout秒」
+   なのか「スレッドごとにtimeout秒」なのかをdocstring・実装の両方で確認すること。
+
+8. **`cooldown_seconds`（`detection`設定）は`0`を許容する設計だが、`0`の場合は
+   検知開始フレームでも`now - last_motion_at < cooldown_seconds`が`0 < 0`で`False`になり、
+   通知（`MotionNotifier.notify_if_due`）が一度も呼ばれず`reset()`され続ける**。
+   録画ロジックには影響しないが、通知機能が実質無効化される暗黙の境界値。
+   **How to apply**: `main.py`のクールダウン判定とdetection/notificationの連携箇所を見る際は、
+   `cooldown_seconds=0`のような境界値でどちらの機能が無効化されるか確認する。
 
 関連: [[project-webcam-security-architecture]]
