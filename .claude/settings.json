@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cmd=$(grep -oP '(?<=\"command\":\")[^\"]*'); seg=$(echo \"$cmd\" | grep -oP '(?:^|[;&|])\\s*(sudo\\s+)?rm\\s+[^;&|]*' | head -1); blocked=0; if [ -n \"$seg\" ]; then has_r=0; has_f=0; echo \"$seg\" | grep -Eqi -- '(^|[^a-zA-Z-])-[a-zA-Z]*r[a-zA-Z]*\\b|--recursive\\b' && has_r=1; echo \"$seg\" | grep -Eqi -- '(^|[^a-zA-Z-])-[a-zA-Z]*f[a-zA-Z]*\\b|--force\\b' && has_f=1; if [ \"$has_r\" = \"1\" ] && [ \"$has_f\" = \"1\" ]; then blocked=1; fi; fi; if [ \"$blocked\" = \"1\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"rm -rf (再帰+強制削除) コマンドはhooksにより禁止されています\"}}'; else echo '{}'; fi",
+            "statusMessage": "rm -rf チェック中..."
+          }
+        ]
+      }
+    ]
+  }
+}
