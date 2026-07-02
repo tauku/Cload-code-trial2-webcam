@@ -1,5 +1,17 @@
 {
   "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > \\$null; \\$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \\$text = \\$template.GetElementsByTagName('text'); \\$text.Item(0).AppendChild(\\$template.CreateTextNode('Claude Code')) > \\$null; \\$text.Item(1).AppendChild(\\$template.CreateTextNode('作業が完了しました')) > \\$null; \\$toast = [Windows.UI.Notifications.ToastNotification]::new(\\$template); \\$appId = (Get-Process -Id \\$PID).Path; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(\\$appId).Show(\\$toast)\" 2>/dev/null",
+            "statusMessage": "作業完了を通知中..."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
